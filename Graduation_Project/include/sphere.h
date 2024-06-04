@@ -14,7 +14,7 @@ public:
 	__device__ void changePosition(curandState* global_state) override {
 		if (movable) {
 			curandState local_rand_state = *global_state;
-			vec3 offset = vec3(RND * 2 - 1, RND * 2 - 1, RND * 2 - 1);
+			vec3 offset = vec3((RND - 0.5) * 0.01 , (RND - 0.5) * 0.01, (RND - 0.5) * 0.01);
 			center = center + offset;
 			bbox = bbox + offset;
 		}

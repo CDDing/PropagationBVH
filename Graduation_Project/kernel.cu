@@ -23,6 +23,7 @@
 unsigned char* dbackground_image;
 hittable_list** world;
 bvh_node** bvh_list;
+bool prop = false;
 camera** cam;
 int object_counts = 1000;
 curandState* random_state;
@@ -56,10 +57,13 @@ extern "C" void RotateCamera(int x, int y) {
 extern "C" void manivfov(int x) {
 	ManipulateVFOV << <1, 1 >> > (cam, x);
 }
-__global__ void Propagation(hittable_list** world,curandState* global_state) {
+extern "C" void toggleProp() {
+	prop = !prop;
+}
+__global__ void Propagation(hittable_list** world,curandState* global_state,bool propagation) {
 	hittable** list = (*world)->get_list();
 	bvh_node* bvh = (bvh_node*)list[0];
-	bvh->Propagate(global_state);
+	if(propagation)bvh->Propagate(global_state);
 }
 
 __global__ void CalculatePerPixel(hittable_list** world, camera** camera, curandState* global_rand_state, unsigned int* g_odata, int imgh, int imgw) {
@@ -268,6 +272,6 @@ extern "C" void initCuda(dim3 grid, dim3 block, int image_height, int image_widt
 }
 extern "C" void generatePixel(dim3 grid, dim3 block, int sbytes,
 	unsigned int* g_odata, int imgh, int imgw) {
-	Propagation<<<1,1>>>(world,random_state);
+	Propagation<<<1,1>>>(world,random_state,prop);
 	CalculatePerPixel << <grid, block, sbytes >> > (world, cam, random_state, g_odata, imgh, imgw);
 }

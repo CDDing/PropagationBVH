@@ -23,6 +23,7 @@ struct hit_record
 
 class hittable {
 public:
+    hittable* parentBox;
     __device__ virtual bool hit(const ray& r, float maxt, hit_record& rec) const = 0;
     __device__ virtual void changePosition(curandState* global_state) {};
     __device__ virtual aabb bounding_box() const = 0;

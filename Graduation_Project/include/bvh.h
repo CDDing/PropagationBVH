@@ -17,7 +17,7 @@ public:
 
 	__device__ bvh_node(): left(nullptr), right(nullptr), tmp(nullptr) {};
 
-	__device__ bvh_node(hittable_list** world, bvh_node** bvh_list, curandState* state ) {
+	__device__ bvh_node(hittable_list** world, bvh_node** bvh_list, curandState* state ){
 		hittable** objects = (*world)->list;
 		int object_num = (*world)->now_size;
 
@@ -147,15 +147,29 @@ public:
 			hittable* now = stk[--idx];
 			if (now->isLeaf()) {
 				now->changePosition(global_state);
+				bvh_node* parent = (bvh_node*)now->parentBox;
+				while (parent) {
+					parent->bbox = aabb(parent->bbox, now->bounding_box());
+					parent = (bvh_node*)parent->parentBox;
+				}
+
 			}
 			else {
-				auto left = ((bvh_node*)now)->left;
-				auto right = ((bvh_node*)now)->right;
-				if(left) stk[idx++] = left;
-				if(right) stk[idx++] = right;
-				
+				bvh_node* left = (bvh_node*)((bvh_node*)now)->left;
+				bvh_node* right = (bvh_node*)((bvh_node*)now)->right;
+				if (left) {
+					stk[idx++] = left;
+					left->parentBox = now;
+				}
+				if (right) {	
+					stk[idx++] = right;
+					right->parentBox = now;
+				}
 			}
 		}
+	}
+	__device__ void changePosition(curandState* global_state) override {
+		//Propagate(global_state);
 	}
 	__device__ aabb bounding_box() const override { return bbox; }
 	__device__ bool isLeaf() const override { return false; }
