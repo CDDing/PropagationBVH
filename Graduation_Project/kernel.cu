@@ -57,22 +57,9 @@ extern "C" void manivfov(int x) {
 	ManipulateVFOV << <1, 1 >> > (cam, x);
 }
 __global__ void Propagation(hittable_list** world,curandState* global_state) {
-	bvh_node** bvh = (bvh_node**)(*world)->get_list();
-	hittable* stk[32];
-	int top = 0;
-	stk[top++] = (*bvh)->left;
-	stk[top++] = (*bvh)->right;
-	while (top) {
-		hittable* now = stk[--top];
-		if (now->isLeaf()) {
-			now->changePosition(global_state);
-		}
-		else {
-			bvh_node* now_node = (bvh_node*)now;
-			stk[top++] = now_node->left;
-			stk[top++] = now_node->right;
-		}
-	}
+	hittable** list = (*world)->get_list();
+	bvh_node* bvh = (bvh_node*)list[0];
+	bvh->Propagate(global_state);
 }
 
 __global__ void CalculatePerPixel(hittable_list** world, camera** camera, curandState* global_rand_state, unsigned int* g_odata, int imgh, int imgw) {
@@ -117,11 +104,11 @@ __global__ void initWorld(hittable_list** world, int object_counts) {
 __global__ void addObjects(curandState* global_state, hittable_list** world, int object_counts) {
 	curand_init(0, 0, 0, &global_state[0]);
 	curandState local_rand_state = *global_state;
-	(*world)->add(new sphere(vec3(0, -1000.0, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5))));
+	(*world)->add(new sphere(vec3(0, -1000.0, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)),0));
 
 	//(*world)->add(new triangle(vec3(50, 50, 50), vec3(-50, 50, 50), vec3(50, -50, 50), new metal(vec3(0.5, 0.7, 0.8),0)));
 
-	(*world)->add(new sphere(vec3(0, 200, 0), 100, new light(vec3(1, 1, 1))));
+	(*world)->add(new sphere(vec3(0, 200, 0), 100, new light(vec3(1, 1, 1)),0));
 	int sphere_count = 10;
 
 
@@ -133,13 +120,13 @@ __global__ void addObjects(curandState* global_state, hittable_list** world, int
 			float choose_mat = RND;
 			vec3 center(a + RND, 0.2, b + RND);
 			if (choose_mat < 0.8f) {
-				(*world)->add(new sphere(center, 0.2, new lambertian(vec3(RND * RND, RND * RND, RND * RND))));
+				(*world)->add(new sphere(center, 0.2, new lambertian(vec3(RND * RND, RND * RND, RND * RND)),1));
 			}
 			else if (choose_mat <= 1.0f) {
-				(*world)->add(new sphere(center, 0.2, new metal(vec3(0.5f * (1.0f + RND), 0.5f * (1.0f + RND), 0.5f * (1.0f + RND)), 0.0f/*0.5f * RND*/)));
+				(*world)->add(new sphere(center, 0.2, new metal(vec3(0.5f * (1.0f + RND), 0.5f * (1.0f + RND), 0.5f * (1.0f + RND)), 0.0f/*0.5f * RND*/),1));
 			}
 			else {
-				(*world)->add(new sphere(center, 0.2, new dielectric(1.5)));
+				(*world)->add(new sphere(center, 0.2, new dielectric(1.5),1));
 			}
 		}
 	}
@@ -281,5 +268,6 @@ extern "C" void initCuda(dim3 grid, dim3 block, int image_height, int image_widt
 }
 extern "C" void generatePixel(dim3 grid, dim3 block, int sbytes,
 	unsigned int* g_odata, int imgh, int imgw) {
+	Propagation<<<1,1>>>(world,random_state);
 	CalculatePerPixel << <grid, block, sbytes >> > (world, cam, random_state, g_odata, imgh, imgw);
 }

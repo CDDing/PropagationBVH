@@ -136,7 +136,27 @@ public:
 		}
 		return isHit;
 	}
+	
+	__device__ void Propagate(curandState* global_state) {
 
+		hittable* stk[32];
+		int idx = 0;
+		stk[idx++] = right;
+		stk[idx++] = left;
+		while (idx) {
+			hittable* now = stk[--idx];
+			if (now->isLeaf()) {
+				now->changePosition(global_state);
+			}
+			else {
+				auto left = ((bvh_node*)now)->left;
+				auto right = ((bvh_node*)now)->right;
+				if(left) stk[idx++] = left;
+				if(right) stk[idx++] = right;
+				
+			}
+		}
+	}
 	__device__ aabb bounding_box() const override { return bbox; }
 	__device__ bool isLeaf() const override { return false; }
 
