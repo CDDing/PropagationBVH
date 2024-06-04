@@ -56,6 +56,24 @@ extern "C" void RotateCamera(int x, int y) {
 extern "C" void manivfov(int x) {
 	ManipulateVFOV << <1, 1 >> > (cam, x);
 }
+__global__ void Propagation(hittable_list** world,curandState* global_state) {
+	bvh_node** bvh = (bvh_node**)(*world)->get_list();
+	hittable* stk[32];
+	int top = 0;
+	stk[top++] = (*bvh)->left;
+	stk[top++] = (*bvh)->right;
+	while (top) {
+		hittable* now = stk[--top];
+		if (now->isLeaf()) {
+			now->changePosition(global_state);
+		}
+		else {
+			bvh_node* now_node = (bvh_node*)now;
+			stk[top++] = now_node->left;
+			stk[top++] = now_node->right;
+		}
+	}
+}
 
 __global__ void CalculatePerPixel(hittable_list** world, camera** camera, curandState* global_rand_state, unsigned int* g_odata, int imgh, int imgw) {
 	int tx = threadIdx.x;
@@ -83,7 +101,7 @@ __global__ void CalculatePerPixel(hittable_list** world, camera** camera, curand
 __global__ void initCamera(camera** ca,unsigned char* background_image,int iw,int ih) {
 	*ca = new camera(16.0 / 9.0, //종횡비
 		1600,                    //이미지 가로길이
-		1,                       //픽셀당 샘플수
+		5,                       //픽셀당 샘플수
 		5,                      //반사 횟수
 		90,                      //시야각
 		vec3(-20, 0, 0),         //카메라 위치 
@@ -111,12 +129,13 @@ __global__ void addObjects(curandState* global_state, hittable_list** world, int
 
 	for (int a = -sphere_count; a < sphere_count; a++) {
 		for (int b = -sphere_count; b < sphere_count; b++) {
+			
 			float choose_mat = RND;
 			vec3 center(a + RND, 0.2, b + RND);
 			if (choose_mat < 0.8f) {
 				(*world)->add(new sphere(center, 0.2, new lambertian(vec3(RND * RND, RND * RND, RND * RND))));
 			}
-			else if (choose_mat < 0.95f) {
+			else if (choose_mat <= 1.0f) {
 				(*world)->add(new sphere(center, 0.2, new metal(vec3(0.5f * (1.0f + RND), 0.5f * (1.0f + RND), 0.5f * (1.0f + RND)), 0.0f/*0.5f * RND*/)));
 			}
 			else {

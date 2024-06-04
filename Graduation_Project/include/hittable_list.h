@@ -19,6 +19,7 @@ public:
 	__device__ hittable_list(hittable* object,int n) : hittable_list(n) {
 		add(object);
 	}
+	__device__ hittable** get_list() const { return list; }
 
 	__device__ void add(hittable* object) {
 		//objects.push_back(object);

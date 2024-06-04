@@ -10,7 +10,13 @@ public:
 		vec3 rvec = vec3(radius, radius, radius);
 		bbox = aabb(cen - rvec, cen + rvec);
 	};
-
+	#define RND (curand_uniform(&local_rand_state))
+	__device__ void changePosition(curandState* global_state) override {
+		curandState local_rand_state = *global_state;
+		vec3 offset = vec3(RND*2 - 1, RND*2 - 1, RND * 2 - 1);
+		center = center + offset;
+		bbox = bbox + offset;
+	}
 	__device__ bool hit(const ray& r, float maxt, hit_record& rec) const {
 		vec3 oc = r.origin() - center;
 		float a = dot(r.direction(), r.direction());
