@@ -57,14 +57,19 @@ extern "C" void RotateCamera(int x, int y) {
 extern "C" void manivfov(int x) {
 	ManipulateVFOV << <1, 1 >> > (cam, x);
 }
-extern "C" void toggleProp() {
-	prop = !prop;
-}
-__global__ void Propagation(hittable_list** world,curandState* global_state,bool propagation) {
+
+__global__ void AddSphere(hittable_list** world,int cnt) {
 	hittable** list = (*world)->get_list();
 	bvh_node* bvh = (bvh_node*)list[0];
-	if(propagation)bvh->Propagate(global_state);
-	else bvh->clearTraversal();
+	curandState local_rand_state;
+	curand_init(cnt, 0, 0, &local_rand_state);
+	printf("추가");
+	bvh->add(new sphere(vec3(RND*10, RND*10, RND*10), 4, new lambertian(vec3(RND, RND, RND)),0));
+}
+
+int ballcnt = 0;
+extern "C" void GenerateSphere() {
+	AddSphere << <1, 1 >> > (world,ballcnt++);
 }
 
 __global__ void CalculatePerPixel(hittable_list** world, camera** camera, curandState* global_rand_state, unsigned int* g_odata, int imgh, int imgw) {
@@ -156,10 +161,6 @@ __global__ void Random_Init(curandState* global_state, int ih) {
 	int y = blockIdx.y * bh + ty;
 	unsigned int pixel_index = x + y * ih;
 	curand_init(pixel_index, 0, 0, &global_state[pixel_index]);
-}
-__global__ void RandomObjectMove_Init(curandState* global_state,int objectcnt) {
-
-
 }
 
 __global__ void initMesh(hittable_list** tmp, int obj_counts) {
@@ -280,7 +281,7 @@ __global__ void printTraversalCount(hittable_list** world) {
 }
 extern "C" void generatePixel(dim3 grid, dim3 block, int sbytes,
 	unsigned int* g_odata, int imgh, int imgw) {
-	Propagation<<<1,1>>>(world,random_state,prop);
+	//Propagation<<<1,1>>>(world,random_state,prop);
 	CalculatePerPixel << <grid, block, sbytes >> > (world, cam, random_state, g_odata, imgh, imgw);
-	printTraversalCount << <1, 1 >> > (world);
+	//printTraversalCount << <1, 1 >> > (world);
 }

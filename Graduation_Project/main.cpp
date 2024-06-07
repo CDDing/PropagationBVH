@@ -39,7 +39,7 @@ extern "C" void initCuda(dim3 grid, dim3 block,int image_height, int image_width
 extern "C" void moveCamera(int direction,int weight);
 extern "C" void RotateCamera(int x, int y);
 extern "C" void manivfov(int x);
-extern "C" void toggleProp();
+extern "C" void GenerateSphere();
 void createPBO(GLuint* pbo, struct cudaGraphicsResource** pbo_resource) {
     // set up vertex data parameter
     num_texels = image_width * image_height;
@@ -232,7 +232,7 @@ void keyboard(unsigned char key, int /*x*/, int /*y*/) {
         moveCamera(2, keyboard_d);
     }
     else if (key == 'z') {
-        	toggleProp();
+        GenerateSphere();
     }
     //default:
         //printf("%c ´­¸²", key);

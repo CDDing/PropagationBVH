@@ -19,6 +19,11 @@ public:
 	long long raycnt;
 
 	__device__ bvh_node(): left(nullptr), right(nullptr), tmp(nullptr),totalidx(0),raycnt(0){};
+	__device__ bvh_node(hittable* a, hittable* b) {
+		left = a;
+		right = b;
+		bbox = aabb(a->bounding_box(), b->bounding_box());
+	}
 
 	__device__ bvh_node(hittable_list** world, bvh_node** bvh_list, curandState* state ): totalidx(0),raycnt(0){
 		hittable** objects = (*world)->list;
@@ -154,39 +159,63 @@ public:
 	}
 
 #define RND (curand_uniform(&local_rand_state))
-	__device__ void Propagate(curandState* global_state) {
-		int cnt = 0;
+	__device__ void add(hittable* node) {
+		auto bbox = node->bounding_box();
+		hittable* best = this;
+		auto bestcost = aabb(bbox, best->bounding_box()).surface_area() - best->bounding_box().surface_area();
 		hittable* stk[32];
 		int idx = 0;
-		stk[idx++] = right;
 		stk[idx++] = left;
+		stk[idx++] = right;
+		this->parentBox = nullptr;
 		while (idx) {
 			hittable* now = stk[--idx];
-			if (now->isLeaf()) {
-				curandState local_rand_state;
-				curand_init(cnt++,0, 0, &local_rand_state);
-				if (RND > 0.5f) {
-					now->changePosition(&local_rand_state);
-					bvh_node* parent = (bvh_node*)now->parentBox;
-					while (parent) {
-						parent->bbox = aabb(parent->bbox, now->bounding_box());
-						parent = (bvh_node*)parent->parentBox;
-					}
-				}
+			
+			auto nowcost = aabb(now->bounding_box(), bbox).surface_area() - now->bounding_box().surface_area();
+			if (bestcost > nowcost) {
+				best = now;
+				bestcost = nowcost;
 			}
-			else {
-				bvh_node* left = (bvh_node*)((bvh_node*)now)->left;
-				bvh_node* right = (bvh_node*)((bvh_node*)now)->right;
+			auto left = ((bvh_node*)now)->left;
+			auto right = ((bvh_node*)now)->right;
+			if (!now->isLeaf()) {
 				if (left) {
 					stk[idx++] = left;
 					left->parentBox = now;
 				}
-				if (right) {	
+				if (right) {
 					stk[idx++] = right;
 					right->parentBox = now;
 				}
 			}
 		}
+		bvh_node* old = (bvh_node*)best->parentBox;
+
+		bvh_node *newNode = new bvh_node(best,node);
+
+		if(old){
+			if (old->left && old->right) {
+				if (old->left == best) {
+					old->left = newNode;
+				}
+				else {
+					old->right = newNode;
+				}
+			}
+			else if (old->right) {
+				old->right = newNode;
+			}else{
+				old->left = newNode;
+			}
+		}
+		else {
+			best = newNode;
+		}
+		while (old) {
+			old->bbox = aabb(old->bbox, node->bounding_box());
+			old=(bvh_node*)old->parentBox;
+		}
+
 	}
 	__device__ void changePosition(curandState* global_state) override {
 		//Propagate(global_state);
