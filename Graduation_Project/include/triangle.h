@@ -25,7 +25,7 @@ public:
 		bbox = aabb(min_point, max_point);
 	};
 
-	__device__ bool hit(const ray& r, float maxt, hit_record& rec) const {
+	__device__ bool hit(const ray& r, float maxt, hit_record& rec)  {
 
 
 		auto denom = dot(normal, r.direction());

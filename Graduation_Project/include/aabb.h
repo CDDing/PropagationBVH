@@ -41,6 +41,9 @@ public:
 		return x;
 	}
 
+	__device__ const double surface_area() const {
+		return 2 * (x.size() * y.size() + x.size() * z.size() + y.size() * z.size());
+	}
 	__device__ bool hit(const ray& r, float& maxt) const {
 		auto left = 0.001f;
 		auto right = maxt;

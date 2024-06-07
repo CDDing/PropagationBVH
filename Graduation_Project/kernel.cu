@@ -64,6 +64,7 @@ __global__ void Propagation(hittable_list** world,curandState* global_state,bool
 	hittable** list = (*world)->get_list();
 	bvh_node* bvh = (bvh_node*)list[0];
 	if(propagation)bvh->Propagate(global_state);
+	else bvh->clearTraversal();
 }
 
 __global__ void CalculatePerPixel(hittable_list** world, camera** camera, curandState* global_rand_state, unsigned int* g_odata, int imgh, int imgw) {
@@ -156,7 +157,10 @@ __global__ void Random_Init(curandState* global_state, int ih) {
 	unsigned int pixel_index = x + y * ih;
 	curand_init(pixel_index, 0, 0, &global_state[pixel_index]);
 }
+__global__ void RandomObjectMove_Init(curandState* global_state,int objectcnt) {
 
+
+}
 
 __global__ void initMesh(hittable_list** tmp, int obj_counts) {
 	(*tmp) = new hittable_list(obj_counts);
@@ -270,8 +274,13 @@ extern "C" void initCuda(dim3 grid, dim3 block, int image_height, int image_widt
 	makeBVH << <1, 1 >> > (bvh_state, world, bvh_list, object_counts);
 
 }
+__global__ void printTraversalCount(hittable_list** world) {
+	auto bvh = (bvh_node*)(*world)->get_list()[0];
+	printf("평균 순회 횟수 : %f\n",bvh->getTraversal());
+}
 extern "C" void generatePixel(dim3 grid, dim3 block, int sbytes,
 	unsigned int* g_odata, int imgh, int imgw) {
 	Propagation<<<1,1>>>(world,random_state,prop);
 	CalculatePerPixel << <grid, block, sbytes >> > (world, cam, random_state, g_odata, imgh, imgw);
+	printTraversalCount << <1, 1 >> > (world);
 }

@@ -29,7 +29,7 @@ public:
 
 	}
 
-	__device__ bool hit(const ray& r, float maxt, hit_record& rec) const {
+	__device__ bool hit(const ray& r, float maxt, hit_record& rec) {
 		hit_record temp_rec;
 		bool hit_anything = false;
 		float closest_so_far = maxt;

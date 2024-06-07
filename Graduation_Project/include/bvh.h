@@ -15,9 +15,12 @@ public:
 	hittable** tmp; // 머지소트용 배열
 	aabb bbox;
 
-	__device__ bvh_node(): left(nullptr), right(nullptr), tmp(nullptr) {};
+	long long totalidx;
+	long long raycnt;
 
-	__device__ bvh_node(hittable_list** world, bvh_node** bvh_list, curandState* state ){
+	__device__ bvh_node(): left(nullptr), right(nullptr), tmp(nullptr),totalidx(0),raycnt(0){};
+
+	__device__ bvh_node(hittable_list** world, bvh_node** bvh_list, curandState* state ): totalidx(0),raycnt(0){
 		hittable** objects = (*world)->list;
 		int object_num = (*world)->now_size;
 
@@ -106,7 +109,7 @@ public:
 		bbox = aabb(left->bounding_box(), right->bounding_box());
 	}
 
-	__device__ bool hit(const ray& r, float maxt, hit_record& rec) const override {
+	__device__ bool hit(const ray& r, float maxt, hit_record& rec) override {
 		float tmax = maxt;
 		if (!bbox.hit(r, maxt)) {
 			return false;
@@ -115,6 +118,7 @@ public:
 		bool isHit = false;
 		hittable* stk[32];
 		int idx = 0;
+		int maxidx = 0;
 		stk[idx++] = right;
 		stk[idx++] = left;
 		hit_record temp_rec;
@@ -129,16 +133,29 @@ public:
 			}
 			else {
 				if (now->bounding_box().hit(r, tmax)) {
+					maxidx++;
 					stk[idx++] = ((bvh_node*)now)->right;
 					stk[idx++] = ((bvh_node*)now)->left;
 				}
 			}
 		}
+		raycnt+=1;
+		totalidx += maxidx;
 		return isHit;
 	}
-	
-	__device__ void Propagate(curandState* global_state) {
 
+	__device__ double getTraversal() {
+		printf("TotalIdx : %ld, RayCnt : %ld\n", totalidx, raycnt);
+		return totalidx / raycnt;
+	}
+	__device__ void clearTraversal() {
+		totalidx = 0;
+		raycnt = 0;
+	}
+
+#define RND (curand_uniform(&local_rand_state))
+	__device__ void Propagate(curandState* global_state) {
+		int cnt = 0;
 		hittable* stk[32];
 		int idx = 0;
 		stk[idx++] = right;
@@ -146,13 +163,16 @@ public:
 		while (idx) {
 			hittable* now = stk[--idx];
 			if (now->isLeaf()) {
-				now->changePosition(global_state);
-				bvh_node* parent = (bvh_node*)now->parentBox;
-				while (parent) {
-					parent->bbox = aabb(parent->bbox, now->bounding_box());
-					parent = (bvh_node*)parent->parentBox;
+				curandState local_rand_state;
+				curand_init(cnt++,0, 0, &local_rand_state);
+				if (RND > 0.5f) {
+					now->changePosition(&local_rand_state);
+					bvh_node* parent = (bvh_node*)now->parentBox;
+					while (parent) {
+						parent->bbox = aabb(parent->bbox, now->bounding_box());
+						parent = (bvh_node*)parent->parentBox;
+					}
 				}
-
 			}
 			else {
 				bvh_node* left = (bvh_node*)((bvh_node*)now)->left;

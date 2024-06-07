@@ -14,12 +14,12 @@ public:
 	__device__ void changePosition(curandState* global_state) override {
 		if (movable) {
 			curandState local_rand_state = *global_state;
-			vec3 offset = vec3((RND - 0.5) * 0.01 , (RND - 0.5) * 0.01, (RND - 0.5) * 0.01);
+			vec3 offset = vec3((RND - 0.5) * 0.3, (RND - 0.5) * 0.3, (RND - 0.5) * 0.3);
 			center = center + offset;
 			bbox = bbox + offset;
 		}
 	}
-	__device__ bool hit(const ray& r, float maxt, hit_record& rec) const {
+	__device__ bool hit(const ray& r, float maxt, hit_record& rec)  {
 		vec3 oc = r.origin() - center;
 		float a = dot(r.direction(), r.direction());
 		float b = dot(oc, r.direction());
